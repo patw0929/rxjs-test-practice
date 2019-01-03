@@ -29,16 +29,12 @@ const fetchAPI = url => {
     });
 };
 
-const searchRepo$ = key$ => {
-  return key$.debounceTime(150)
+const searchRepo$ = (key$, fetch$, dueTime, scheduler) => {
+  return key$.debounceTime(dueTime, scheduler)
     .pluck('target', 'value')
     .map(text => text.trim())
     .filter(query => query.length !== 0)
-    .switchMap(query => {
-      const url = `https://api.github.com/search/repositories?q=${query}&sort=stars&order=desc`;
-
-      return Observable.fromPromise(fetchAPI(url));
-    });
+    .switchMap(fetch$);
 };
 
 const createKeyup$ = () => Observable.fromEvent(
@@ -46,8 +42,19 @@ const createKeyup$ = () => Observable.fromEvent(
   'keyup'
 );
 
-searchRepo$(createKeyup$()).subscribe(value => {
+const fetchRepoList$ = query => {
+  const url = `https://api.github.com/search/repositories?q=${query}&sort=stars&order=desc`;
+
+  return Observable.fromPromise(fetchAPI(url));
+};
+
+searchRepo$(createKeyup$(), fetchRepoList$, 150).subscribe(value => {
   return document.querySelector('#results').innerHTML = value.items.map(
     repo => `<li class="list-group-item">${repo.full_name}</li>`
   ).join('');
 });
+
+export {
+  searchRepo$,
+  fetchRepoList$,
+};
